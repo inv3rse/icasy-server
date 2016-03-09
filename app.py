@@ -1,5 +1,7 @@
 from flask import Flask, jsonify
 from flask.ext.restful import Api, Resource, reqparse
+from flask.ext.sqlalchemy import SQLAlchemy
+from sqlalchemy.dialects.postgresql import JSON
 
 import os
 import random
@@ -7,42 +9,14 @@ import string
 
 app = Flask(__name__)
 app.config.from_object(os.environ['APP_SETTINGS'])
+db = SQLAlchemy(app)
 api = Api(app)
 
 decks = {}
 
 
-class Card(object):
-    """docstring for Card"""
-
-    def __init__(self):
-        super(Card, self).__init__()
-        self.ID = 0
-        self.rating = 0
-        self.type = 0
-        self.question = ""
-        self.answer = ""
-        self.false_answer = ""
-
-
-def parse_card(**args):
-    card = Card()
-    try:
-        card.ID = args['ID']
-        card.rating = args['rating']
-        card.type = args['type']
-        card.question = args['question']
-        card.answer = args['answer']
-        card.false_answer = args['false_answer']
-
-    except KeyError:
-        raise TypeError("invalid args")
-
-    return card
-
-
 def card_to_dict(card):
-    return {'ID': card.ID,
+    return {'ID': card.id,
             'rating': card.rating,
             'type': card.type,
             'question': card.question,
@@ -50,31 +24,22 @@ def card_to_dict(card):
             'false_answer': card.false_answer}
 
 
-def parse_cards(value):
-    cards = []
-    try:
-        for v in value:
-            card = parse_card(**v)
-            cards.append(card)
-    except TypeError:
-        raise ValueError("Invalid Card")
-
-    return cards
-
-
-class Deck(object):
+class Deck(db.Model):
     """docstring for Deck"""
 
-    def __init__(self, ID, name, cards):
+    id = db.Column(db.String, primary_key=True)
+    name = db.Column(db.String)
+    cards = db.Column(JSON)
+
+    def __init__(self, name, cards):
         super(Deck, self).__init__()
-        self.ID = ID
         self.name = name
         self.cards = cards
 
 
 def deck_to_dict(deck):
     return {'name': deck.name,
-            'cards': [card_to_dict(card) for card in deck.cards]}
+            'cards': deck.cards}
 
 
 def random_id():
@@ -85,8 +50,7 @@ def random_id():
 def deck_parser():
     deck_parse = reqparse.RequestParser()
     deck_parse.add_argument('name', type=str, required=True, location='json')
-    deck_parse.add_argument(
-        'cards', type=parse_cards, required=True, location='json')
+    deck_parse.add_argument('cards', type=str, required=True, location='json')
 
     return deck_parse
 
