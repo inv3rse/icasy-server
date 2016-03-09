@@ -1,10 +1,12 @@
 from flask import Flask, jsonify
 from flask.ext.restful import Api, Resource, reqparse
 
+import os
 import random
 import string
 
 app = Flask(__name__)
+app.config.from_object(os.environ['APP_SETTINGS'])
 api = Api(app)
 
 decks = {}
@@ -127,4 +129,4 @@ def update_deck_entry(id):
 
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run()
