@@ -12,17 +12,6 @@ app.config.from_object(os.environ['APP_SETTINGS'])
 db = SQLAlchemy(app)
 api = Api(app)
 
-decks = {}
-
-
-def card_to_dict(card):
-    return {'ID': card.id,
-            'rating': card.rating,
-            'type': card.type,
-            'question': card.question,
-            'answer': card.answer,
-            'false_answer': card.false_answer}
-
 
 class Deck(db.Model):
     """docstring for Deck"""
@@ -31,8 +20,9 @@ class Deck(db.Model):
     name = db.Column(db.String)
     cards = db.Column(JSON)
 
-    def __init__(self, name, cards):
+    def __init__(self, id, name, cards):
         super(Deck, self).__init__()
+        self.id = id
         self.name = name
         self.cards = cards
 
@@ -68,16 +58,16 @@ def create_deck_entry():
     args = deck_parser().parse_args()
     id = random_id()
     deck = Deck(id, args['name'], args['cards'])
-    decks[id] = deck
+    db.session.add(deck)
+    db.session.commit()
 
     return id
 
 
 @app.route('/deck/<string:id>', methods=['GET'])
 def get_deck_entry(id):
-    try:
-        deck = decks[id]
-    except KeyError:
+    deck = db.session.query(Deck).get(id)
+    if deck is None:
         return "deck not found", 404
 
     return jsonify(deck_to_dict(deck))
@@ -85,9 +75,15 @@ def get_deck_entry(id):
 
 @app.route('/deck/<string:id>', methods=['PUT'])
 def update_deck_entry(id):
+    deck = db.session.query(Deck).get(id)
+    if deck is None:
+        return "deck not found", 404
+
     args = deck_parser().parse_args()
-    deck = Deck(id, args['name'], args['cards'])
-    decks[id] = deck
+    deck.name = args['name']
+    deck.cards = args['cards']
+
+    db.session.commit()
 
     return jsonify(deck_to_dict(deck))
 
